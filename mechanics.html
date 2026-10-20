@@ -4,15 +4,19 @@
 
 <p><a href="https://fvmpd2.github.io/pd2-dragon-tail-calculator/">Use the calculator</a>. <a href="engine.js">Calculation engine</a>. <a href="test.js">Tests</a>.</p>
 
+<h2 id="correction-compiled-boot-damage">Correction: compiled boot damage</h2>
+
+<p>The initial version incorrectly treated the zero damage fields in Armor.txt as the live boot values. The compiled Armor.bin contradicts those fields and is what the native kick helper reads. This revision corrects the model, adds all boot bases plus custom minimum/maximum inputs, and increases predicted damage accordingly. Earlier saved links without a boot selection now default to Myrmidon Greaves; select your own base.</p>
+
 <h2 id="the-main-findings">The main findings</h2>
 
 <ol>
-<li><strong>There is no separate timed explosion event in the Dragon Tail server handler.</strong> It applies the radial fire damage during the skill's server action. Unlike Sacrifice, it does not schedule a callback several game frames later.</li>
+<li><strong>There is no separate timed explosion event in the Dragon Tail server handler.</strong> It applies the radial fire damage during the skill's server action. It does not schedule a later explosion callback.</li>
 <li><strong>The explosion is not calculated from the primary target's lost life or its physical damage after resistance.</strong> The custom handler generates a fresh kick-damage seed and scales its physical field into fire. Physical immunity on the kicked target therefore does not itself zero that seed.</li>
 <li><strong>Fire mastery / +fire skill damage is additive with Dragon Tail's explosion bonus</strong>, rather than a separate multiplicative mastery pass on the completed explosion.</li>
 <li><strong>Critical/Deadly Strike can increase the seed before it becomes fire.</strong> The rebuilt explosion seed calls the critical routine again; it is not simply a copy of the initial kick's damage or strike outcome.</li>
 <li><strong>Damage to demons/undead is evaluated against the kicked target when constructing that seed.</strong> The handler then constructs one fire amount for the area application. The surrounding monsters' own fire resistances still determine their individual damage taken.</li>
-<li><strong>The supplied PD2 boot bases have zero base kick damage.</strong> Wearing a more advanced boot base does not supply the vanilla boot-damage progression in these tables. The boots' strength coefficient is 100.</li>
+<li><strong>Boot base damage matters.</strong> The compiled PD2 Armor.bin contains the values read by the DLL; for example, Myrmidon Greaves are 83–155. The supplied Armor.txt is inconsistent and lists 0–0. The calculator uses the compiled values. The boots' strength coefficient is 100.</li>
 <li><strong>Charges are not safely represented by multiplying the displayed kick by Tiger Strike's tooltip.</strong> The initial hit and rebuilt explosion have different buffers and processing order. The calculator deliberately does not automatically transfer charge-only bonuses to the explosion.</li>
 </ol>
 
@@ -28,7 +32,7 @@
 <li>A successful initial attack and a damaging area application are different stages. Do not infer all hit, block or dodge behavior from a character-sheet damage number.</li>
 <li>The handler checks that the <strong>attacker</strong> survived the initial processing. An attacker death can abort the later burst.</li>
 <li>Target life is not an input to the rebuilt damage. There is no overkill multiplier or corpse-life multiplier in this formula.</li>
-<li>The handler does not require the monster's death animation to finish. A lethal kick does not create a Sacrifice-style corpse timer.</li>
+<li>The handler does not require the monster's death animation to finish.</li>
 <li>Other martial-arts releases are their own effects. Do not attribute every projectile, meteor, poison cloud or fire visual during a finisher to Dragon Tail's explosion.</li>
 </ul>
 
@@ -75,10 +79,10 @@ Relative benefit of +50 mastery = 1017 / 967 − 1 = 5.17%
 
 <h3 id="building-the-seed-from-attributes-and-gear">Building the seed from attributes and gear</h3>
 
-<p>For the supplied boot tables, with boots equipped and ordinary nonnegative bonuses, the custom builder reduces to the following useful model:</p>
+<p>With boots equipped and ordinary nonnegative bonuses, the custom builder reduces to the following useful model:</p>
 
-<pre><code>Base minimum = Dex / 4 + off-weapon min damage + Damage +X + 2 × item_kickdamage
-Base maximum = Dex / 3 + off-weapon max damage + Damage +X + 2 × item_kickdamage
+<pre><code>Base minimum = Dex / 4 + boot base minimum + off-weapon min damage + Damage +X + 2 × item_kickdamage
+Base maximum = Dex / 3 + boot base maximum + off-weapon max damage + Damage +X + 2 × item_kickdamage
 ED pool = Strength + effective off-weapon ED + matching damage-to-demon/undead ED
 Kick range = Base range × (100 + ED pool) / 100
 </code></pre>
@@ -89,7 +93,7 @@ Kick range = Base range × (100 + ED pool) / 100
 
 <ul>
 <li>The custom builder explicitly creates dexterity-derived base minimum/maximum using divisors 4 and 3.</li>
-<li>The native kick helper supplies the boots and their strength/dexterity coefficients. All 15 boot bases in the supplied PD2 Armor.txt have <code>mindam=0</code>, <code>maxdam=0</code>, <code>StrBonus=100</code>, no DexBonus.</li>
+<li>The native kick helper supplies the boots and their strength/dexterity coefficients. The compiled Armor.bin stores base minimum/maximum at record offsets 0xFE/0xFF (424-byte records, after the 4-byte count). All 15 boot bases are selectable in the calculator. The matching strength coefficient is 100, with no dexterity coefficient. Armor.txt's zero minimum/maximum fields do not match these compiled records.</li>
 <li>The helper adds the item kick-damage stat to the output, then includes it again in the worn boots' contribution. Thus that particular stat is counted twice on this path. This is not a claim that every item described as increasing kick damage uses that same stat.</li>
 <li>The custom builder subtracts weapon item min/max stats from the character's min/max totals. Local weapon physical base damage and local weapon ED therefore are not the kick's normal scaling source. The distinct <code>damage +X</code> stat is added explicitly.</li>
 <li>Attribute bonuses, generic ED, off-weapon item ED and the matching monster-type bonus go into the kick scaling pool. Do not enter strength twice.</li>
@@ -97,7 +101,7 @@ Kick range = Base range × (100 + ED pool) / 100
 <li>The native helper has a −90 floor on part of the ED pool. The combined-ED entry is intended for ordinary builds; use a validated manual seed for large negative bonuses, unusual equipment or no boots.</li>
 </ul>
 
-<p><strong>Example:</strong> 300 dexterity, 200 strength, no other physical bonuses gives a seed range of 225–300. With level 40 and both synergies maxed, the normal explosion is approximately <strong>2,175.75–2,901 fire</strong>, before resistance and before strike outcomes.</p>
+<p><strong>Example:</strong> Myrmidon Greaves (83–155), 300 dexterity, 200 strength and no other physical bonuses gives a seed range of (75 + 83) × 3 to (100 + 155) × 3 = <strong>474–765</strong>. With level 40 and both synergies maxed, the normal explosion is approximately <strong>4,583.58–7,397.55 fire</strong>, before resistance and strike outcomes.</p>
 
 <h3 id="critical-strike-and-deadly-strike">Critical Strike and Deadly Strike</h3>
 
@@ -135,11 +139,11 @@ Mean seed multiplier = P(normal) + P(CS) × CS multiplier + P(DS) × DS multipli
 
 <p>Dexterity increases the base range; strength and effective physical ED scale that range; Dragon Tail's skill/synergy/mastery pool then scales the result into fire. These are separate scaling stages. Additional bonuses within the same pool dilute one another.</p>
 
-<p>At 300 dexterity with no flat damage, +20 dexterity gives about 6.67% more seed. At 200 strength and no other ED, +20 strength gives about 6.67% more seed. Once large ED is active, another +20 strength is a smaller relative improvement. Flat off-weapon damage becomes more valuable when both later multipliers are high.</p>
+<p>At 300 dexterity with Myrmidon Greaves and no other flat damage, +20 dexterity gives about 2.82% more average seed. At 200 strength and no other ED, +20 strength gives about 6.67% more seed. Once large ED is active, another +20 strength is a smaller relative improvement. Flat off-weapon damage becomes more valuable when both later multipliers are high.</p>
 
 <p>At level 40 with 40 synergy hard points and no mastery, +1 Dragon Tail level gives 13/967 ≈ 1.34% more fire; one additional synergy hard point gives 8/967 ≈ 0.83%. Fire pierce may be substantially stronger than +fire skill damage against resistant monsters, provided immunity is already broken. The calculator compares these upgrades for the entered setup.</p>
 
-<p>Boot upgrades remain useful for their actual item affixes and defense, but the supplied zero base damage table does not support gaining vanilla Myrmidon Greaves base kick damage merely by upgrading the base. Ethereal weapon damage and weapon ED do not by themselves substitute for the missing boot base damage.</p>
+<p>Upgrading a boot base can improve its kick damage. Select the actual upgraded base in the calculator. The compiled PD2 values differ from the bundled vanilla patch in some cases: Myrmidon Greaves are 83–155 in PD2 versus 83–149 in patch_d2.mpq. Ethereal weapon damage and local weapon ED do not substitute for boot base damage.</p>
 
 <h2 id="charge-interactions-important-boundary">Charge interactions: important boundary</h2>
 
@@ -313,7 +317,7 @@ Mean seed multiplier = P(normal) + P(CS) × CS multiplier + P(DS) × DS multipli
 </tr>
 <tr>
   <td>Table rows</td>
-  <td>Skills 270, Missiles 533, Armor boot rows</td>
+  <td>Skills 270, Missiles 533, compiled Armor boot records</td>
   <td>Extracted from supplied pd2data.mpq</td>
 </tr>
 </tbody>

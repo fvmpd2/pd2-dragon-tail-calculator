@@ -2,7 +2,8 @@
 (function(root){
 'use strict';
 const trunc=Math.trunc, clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-const defaults={mode:'stats',level:40,talon:20,flight:20,dex:300,str:200,flatMin:0,flatMax:0,damagePlus:0,kickBonus:0,ed:0,demonEd:0,undeadEd:0,anchor:'beast',mastery:0,manualMin:225,manualMax:300,cs:0,ds:0,maxDs:0,csBonus:0,dsBonus:0,res:50,pierce:0,conviction:0,lowerRes:0,physRes:0,hit:100,block:0,frames:12,targets:1};
+const boots={"lbt":{"name":"Leather Boots","min":3,"max":8},"vbt":{"name":"Heavy Boots","min":4,"max":12},"mbt":{"name":"Chain Boots","min":6,"max":14},"tbt":{"name":"Light Plate Boots","min":8,"max":18},"hbt":{"name":"Plate Boots","min":10,"max":20},"xlb":{"name":"Demonhide Boots","min":30,"max":64},"xvb":{"name":"Sharkskin Boots","min":32,"max":72},"xmb":{"name":"Mesh Boots","min":35,"max":78},"xtb":{"name":"Battle Boots","min":42,"max":84},"xhb":{"name":"War Boots","min":45,"max":90},"ulb":{"name":"Wyrmhide Boots","min":75,"max":100},"uvb":{"name":"Scarabshell Boots","min":70,"max":110},"umb":{"name":"Boneweave Boots","min":80,"max":125},"utb":{"name":"Mirrored Boots","min":69,"max":147},"uhb":{"name":"Myrmidon Greaves","min":83,"max":155}};
+const defaults={boots:'uhb',bootMin:83,bootMax:155,mode:'stats',level:40,talon:20,flight:20,dex:300,str:200,flatMin:0,flatMax:0,damagePlus:0,kickBonus:0,ed:0,demonEd:0,undeadEd:0,anchor:'beast',mastery:0,manualMin:225,manualMax:300,cs:0,ds:0,maxDs:0,csBonus:0,dsBonus:0,res:50,pierce:0,conviction:0,lowerRes:0,physRes:0,hit:100,block:0,frames:12,targets:1};
 function resistance(raw,pierce=0,conviction=0,lowerRes=0){
  const immune=raw>=100;
  let r=raw;
@@ -17,11 +18,14 @@ function resistance(raw,pierce=0,conviction=0,lowerRes=0){
 }
 function calculate(input={}){
  const v={...defaults,...input};
+ if(!['custom',...Object.keys(boots)].includes(v.boots))throw Error('Select a valid boot base.');
+ if(v.boots!=='custom'){v.bootMin=boots[v.boots].min;v.bootMax=boots[v.boots].max;}
  const n={};for(const [k,x]of Object.entries(v))n[k]=typeof defaults[k]==='number'?Number(x):x;
  for(const [k,x]of Object.entries(n))if(typeof x==='number'&&!Number.isFinite(x))throw Error('Enter a valid number for '+k+'.');
- for(const k of ['level','talon','flight','dex','str','flatMin','flatMax','damagePlus','kickBonus','manualMin','manualMax','cs','ds','maxDs','frames','targets'])if(n[k]<0)throw Error(k+' cannot be negative.');
+ for(const k of ['bootMin','bootMax','level','talon','flight','dex','str','flatMin','flatMax','damagePlus','kickBonus','manualMin','manualMax','cs','ds','maxDs','frames','targets'])if(n[k]<0)throw Error(k+' cannot be negative.');
  if(n.level<1||n.level>100||n.talon>20||n.flight>20)throw Error('Use skill level 1–100 and hard-point synergies 0–20.');
  if(n.frames<1||n.targets<1)throw Error('Attack frames and target count must be at least 1.');
+ if(n.bootMax<n.bootMin)throw Error('Boot maximum must be at least boot minimum.');
  if(n.flatMax<n.flatMin||n.manualMax<n.manualMin)throw Error('Maximum damage must be at least minimum damage.');
  let ed=n.str+n.ed+(n.anchor==='demon'?n.demonEd:n.anchor==='undead'?n.undeadEd:0);
  const skillBonus=40+13*(trunc(n.level)-1)+8*(trunc(n.talon)+trunc(n.flight));
@@ -31,10 +35,10 @@ function calculate(input={}){
  if(n.mode==='manual'){
   kmin=trunc(n.manualMin*256);kmax=trunc(n.manualMax*256);
  }else{
-  // Worn boots, zero base boot damage in supplied PD2 Armor.txt. Kick stat enters twice.
+  // Worn-boot base comes from compiled Armor.bin, not the inconsistent text table.
   const common=2*trunc(n.kickBonus)+trunc(n.damagePlus);
-  const lo=trunc(trunc(n.dex)*256/4)+(common+trunc(n.flatMin))*256;
-  const hi=trunc(trunc(n.dex)*256/3)+(common+trunc(n.flatMax))*256;
+  const lo=trunc(trunc(n.dex)*256/4)+(trunc(n.bootMin)+common+trunc(n.flatMin))*256;
+  const hi=trunc(trunc(n.dex)*256/3)+(trunc(n.bootMax)+common+trunc(n.flatMax))*256;
   // Native kick helper clamps the strength + damagepercent sub-total before adding item ED.
   // UI ED is a combined effective bonus: do not emulate separate negative pools here.
   if(ed<=-90)throw Error('For large negative ED penalties use the manual kick mode.');
@@ -59,6 +63,6 @@ function calculate(input={}){
  const strikeMean=pNormal+pCS*cm+pDS*dm;
  return {input:n,ed,skillBonus,firePercent,kmin:kmin/256,kmax:kmax/256,physicalBase,strikeMean,outcomes,raw,applied,resistance:rf,attemptFactor,perAttempt:applied*attemptFactor,dps:applied*attemptFactor*attempts,pack:applied*n.targets,physicalEstimate:physicalBase*strikeMean*Math.max(0,(100-n.physRes)/100),comparisons:undefined};
 }
-const api={defaults,resistance,calculate};
+const api={boots,defaults,resistance,calculate};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DragonTail=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

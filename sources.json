@@ -41,6 +41,16 @@
     "Skilldesc.txt": {
       "bytes": 94479,
       "sha256": "f11f70872d61936090e77c33382ed0c2cb1f984d9e6509bce081fe2a9f4178a3"
+    },
+    "Armor.bin": {
+      "bytes": 86500,
+      "sha256": "dbb80bd547f9237aec7c3eb4b65019abaa43d8effe3fe5e0bab80588a93f0a63",
+      "archive": "pd2data.mpq",
+      "recordBytes": 424,
+      "damageOffsets": [
+        254,
+        255
+      ]
     }
   },
   "dragonTail": {
@@ -88,5 +98,83 @@
     "HitShift": "8",
     "NumDirections": "1",
     "EOL": "0"
-  }
+  },
+  "boots": {
+    "lbt": {
+      "name": "Leather Boots",
+      "min": 3,
+      "max": 8
+    },
+    "vbt": {
+      "name": "Heavy Boots",
+      "min": 4,
+      "max": 12
+    },
+    "mbt": {
+      "name": "Chain Boots",
+      "min": 6,
+      "max": 14
+    },
+    "tbt": {
+      "name": "Light Plate Boots",
+      "min": 8,
+      "max": 18
+    },
+    "hbt": {
+      "name": "Plate Boots",
+      "min": 10,
+      "max": 20
+    },
+    "xlb": {
+      "name": "Demonhide Boots",
+      "min": 30,
+      "max": 64
+    },
+    "xvb": {
+      "name": "Sharkskin Boots",
+      "min": 32,
+      "max": 72
+    },
+    "xmb": {
+      "name": "Mesh Boots",
+      "min": 35,
+      "max": 78
+    },
+    "xtb": {
+      "name": "Battle Boots",
+      "min": 42,
+      "max": 84
+    },
+    "xhb": {
+      "name": "War Boots",
+      "min": 45,
+      "max": 90
+    },
+    "ulb": {
+      "name": "Wyrmhide Boots",
+      "min": 75,
+      "max": 100
+    },
+    "uvb": {
+      "name": "Scarabshell Boots",
+      "min": 70,
+      "max": 110
+    },
+    "umb": {
+      "name": "Boneweave Boots",
+      "min": 80,
+      "max": 125
+    },
+    "utb": {
+      "name": "Mirrored Boots",
+      "min": 69,
+      "max": 147
+    },
+    "uhb": {
+      "name": "Myrmidon Greaves",
+      "min": 83,
+      "max": 155
+    }
+  },
+  "updated": "2026-10-21"
 }

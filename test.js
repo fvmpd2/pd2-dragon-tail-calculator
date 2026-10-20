@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict');
-const {calculate,resistance}=require('./engine.js');
+const {calculate:calc,resistance,boots}=require('./engine.js');
+const calculate=(v={})=>calc({boots:'custom',bootMin:0,bootMax:0,...v});
 const near=(a,b,t=.02)=>assert.ok(Math.abs(a-b)<t,`${a} != ${b}`);
 // Hand-calculated example: dex300 =>75–100, str200 =>225–300;
 // level40 +40 hard synergies =>867% bonus, 967% total =>2175.75–2901.
@@ -30,4 +31,14 @@ a=calculate({hit:50,block:20,frames:10});near(a.perAttempt,.4*a.applied);near(a.
 assert.throws(()=>calculate({flatMin:10,flatMax:2}));
 assert.throws(()=>calculate({talon:21}));
 assert.throws(()=>calculate({frames:0}));
-console.log('Dragon Tail: 23 formula, immunity, strike, race, validation and throughput checks passed.');
+// Independently check the compiled Myrmidon range and its contribution before ED.
+assert.deepEqual(boots.uhb,{name:'Myrmidon Greaves',min:83,max:155});
+a=calc({boots:'uhb',dex:300,str:200});near(a.kmin,474);near(a.kmax,765);
+near(a.outcomes[0].min,4583.58);near(a.outcomes[0].max,7397.55);
+assert.equal(Object.keys(boots).length,15);
+assert.throws(()=>calc({boots:'custom',bootMin:5,bootMax:1}));
+assert.throws(()=>calc({boots:'unknown'}));
+// Preset ignores stale editable values; a custom range is honored.
+near(calc({boots:'uhb',bootMin:0,bootMax:0}).kmin,474);
+near(calc({boots:'custom',bootMin:10,bootMax:20}).kmin,255);
+console.log('Dragon Tail formula, compiled boots, preset/custom, immunity and validation checks passed.');

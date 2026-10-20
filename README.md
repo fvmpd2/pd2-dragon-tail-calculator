@@ -4,7 +4,7 @@ A standalone Dragon Tail fire-explosion calculator and mechanics audit for **Pro
 
 **[Use the calculator](https://fvmpd2.github.io/pd2-dragon-tail-calculator/)** · **[Read the DLL mechanics audit](mechanics.md)**
 
-Predict Dragon Tail damage from dexterity, strength, off-weapon flat damage, effective ED, hard-point synergies, fire mastery, Critical Strike, Deadly Strike and enemy fire resistance. A manual pre-resistance kick input supports externally validated gear calculations. Build links preserve inputs. Upgrade comparisons show which stats improve the entered setup.
+Predict Dragon Tail damage from boot base, dexterity, strength, off-weapon flat damage, effective ED, hard-point synergies, fire mastery, Critical Strike, Deadly Strike and enemy fire resistance. A manual pre-resistance kick input supports externally validated gear calculations. Build links preserve inputs. Upgrade comparisons show which stats improve the entered setup.
 
 ## Mechanics covered
 
@@ -13,7 +13,7 @@ Predict Dragon Tail damage from dexterity, strength, off-weapon flat damage, eff
 - Additive fire mastery and the DLL's additional 100% term.
 - Demon/undead damage evaluated against the kicked target.
 - Critical/Deadly Strike before fire construction, with a fresh explosion seed.
-- Zero base boot damage in the supplied PD2 tables.
+- Boot-base selection from compiled PD2 Armor.bin, plus editable custom boot damage.
 - S13 versus S14 beta table and handler differences.
 - Charge-transfer caveats, player testing scenarios and exact source fingerprints.
 
@@ -30,3 +30,7 @@ Results are **fire explosion damage**, excluding the initial kick and other mart
 The generic resistance model halves breaking reductions against initial immunity and the below-zero reduction portion. Enter effective debuff values after any boss penalties. Flat reduction, absorb, PvP, extreme-value overflow, exceptional target states and IAS breakpoints are not simulated. Expected averages approximate fixed-point roll distributions.
 
 Source comparisons cover the supplied snapshots, not every intermediate beta update. No original game binaries or full data archives are redistributed.
+
+## Boot-data correction
+
+The first release used zero damage from the inconsistent Armor.txt. The calculator now uses compiled Armor.bin values read by the DLL (Myrmidon Greaves: 83–155), with all 15 boot presets and custom inputs. Existing links without a boot selection default to Myrmidon Greaves. Select the base of your equipped boots.
