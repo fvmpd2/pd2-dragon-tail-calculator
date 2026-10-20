@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://fvmpd2.github.io/pd2-dragon-tail-calculator/sitemap.xml

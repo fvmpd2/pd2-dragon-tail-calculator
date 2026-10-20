@@ -1,0 +1,92 @@
+{
+  "checked": "2026-10-20",
+  "scope": "Supplied S13 original and S14 beta snapshots; not all intermediate patches. Static analysis; no live damage calibration.",
+  "inputs": {
+    "s13_dll": {
+      "bytes": 4312576,
+      "sha256": "538a77b7ccef3d5334e56c4e9e57a4d8fc69a1e27c46beb694c0dedfcfbf9cb3"
+    },
+    "s14_beta_dll": {
+      "bytes": 5230080,
+      "sha256": "9c2b4d4627112d7f14ab959e71c56e947b7ceeb6f16424a637364f614d39122f"
+    },
+    "d2game": {
+      "bytes": 1138688,
+      "sha256": "24b293b86f95bea0228826c502ea04737ba21b91ca9832e52aac4b11fef14f53"
+    },
+    "d2common": {
+      "bytes": 679936,
+      "sha256": "59fa5928522f566f2bf99675571206ad70df889c89d3d07fa87edf5083e06e10"
+    },
+    "s13_skills_snapshot": {
+      "bytes": 320277,
+      "sha256": "19f8efbafbe5e2e58f0f010028efc580a4a1ec8899e857094f2cd94b6dd806f4"
+    },
+    "Skills.txt": {
+      "bytes": 325327,
+      "sha256": "aaaf85fd4e1fe7698dd7b49eb2a43589ad70d4dfa0c575d0cbfe556a75cab26b"
+    },
+    "Missiles.txt": {
+      "bytes": 322913,
+      "sha256": "38e395a8f50d1e0b5fb77fde971d2fe1ff95fd87263ca6de36051964c51eab61"
+    },
+    "Armor.txt": {
+      "bytes": 77143,
+      "sha256": "854704bd51730fa9830c46d97866e432c4127d6bb24e6e8b78e63d84fe166bee"
+    },
+    "ItemStatCost.txt": {
+      "bytes": 66702,
+      "sha256": "d6230a83a38d9f24fa9e7803d0f0695a9b298689cf418db3cabb3e168055063f"
+    },
+    "Skilldesc.txt": {
+      "bytes": 94479,
+      "sha256": "f11f70872d61936090e77c33382ed0c2cb1f984d9e6509bce081fe2a9f4178a3"
+    }
+  },
+  "dragonTail": {
+    "skill": "Dragon Tail",
+    "Id": "270",
+    "srvstfunc": "27",
+    "srvdofunc": "50",
+    "aurastate": "temp_skill_buff",
+    "aurastat1": "attackrate",
+    "aurastatcalc1": "par4",
+    "anim": "KK",
+    "UseAttackRate": "1",
+    "mana": "10",
+    "calc1": "ln12 + (skill('Dragon Talon'.blvl)+ skill('Dragon Flight'.blvl))*par8",
+    "Param1": "40",
+    "Param2": "13",
+    "Param3": "6",
+    "Param4": "-20",
+    "Param8": "8",
+    "Kick": "1"
+  },
+  "visualMissile": {
+    "Missile": "dragontail missile",
+    "Id": "533",
+    "pCltDoFunc": "1",
+    "pSrvDoFunc": "1",
+    "Range": "16",
+    "Red": "255",
+    "Green": "178",
+    "Blue": "64",
+    "InitSteps": "0",
+    "Activate": "0",
+    "LoopAnim": "0",
+    "CelFile": "ExpArrowExplode",
+    "animrate": "1024",
+    "AnimLen": "16",
+    "AnimSpeed": "16",
+    "CollideKill": "1",
+    "LastCollide": "1",
+    "Size": "1",
+    "ToHit": "1",
+    "Explosion": "1",
+    "NoMultiShot": "1",
+    "Trans": "1",
+    "HitShift": "8",
+    "NumDirections": "1",
+    "EOL": "0"
+  }
+}

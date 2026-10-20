@@ -1,0 +1,327 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="A DLL-based guide to PD2 Dragon Tail: damage formulas, explosion timing, fire mastery, critical strike, kick scaling and S14 beta changes."><title>Dragon Tail mechanics · PD2 DLL audit</title><link rel="stylesheet" href="style.css"><style>article{max-width:900px;margin:auto}article h1{font-size:42px}article h2{font-size:25px;margin-top:40px;padding-top:18px;border-top:1px solid var(--edge)}article h3{font-size:19px;margin-top:28px}article p,article li{color:var(--text)}article li{margin:8px 0}article pre{overflow:auto;background:var(--panel);padding:18px;border:1px solid var(--edge);border-radius:8px}article code{font-size:14px}article table{display:block;overflow:auto;font-size:14px}article th,article td{padding:10px;text-align:left!important}article td{min-width:120px}article a{overflow-wrap:anywhere}</style></head><body><main><a href="index.html">← Dragon Tail calculator</a><article><h1 id="project-diablo-2-dragon-tail-mechanics-and-damage-scaling">Project Diablo 2 Dragon Tail: mechanics and damage scaling</h1>
+
+<p>Audit date: 20 October 2026. Scope: the supplied S13 original ProjectDiablo.dll and the supplied S14 Open Beta DLL, plus their available skill tables. This is static analysis, not a live-game calibration. It does not establish what changed in every intermediate beta patch. Exact file fingerprints are in <a href="sources.json">sources.json</a>.</p>
+
+<p><a href="https://fvmpd2.github.io/pd2-dragon-tail-calculator/">Use the calculator</a>. <a href="engine.js">Calculation engine</a>. <a href="test.js">Tests</a>.</p>
+
+<h2 id="the-main-findings">The main findings</h2>
+
+<ol>
+<li><strong>There is no separate timed explosion event in the Dragon Tail server handler.</strong> It applies the radial fire damage during the skill's server action. Unlike Sacrifice, it does not schedule a callback several game frames later.</li>
+<li><strong>The explosion is not calculated from the primary target's lost life or its physical damage after resistance.</strong> The custom handler generates a fresh kick-damage seed and scales its physical field into fire. Physical immunity on the kicked target therefore does not itself zero that seed.</li>
+<li><strong>Fire mastery / +fire skill damage is additive with Dragon Tail's explosion bonus</strong>, rather than a separate multiplicative mastery pass on the completed explosion.</li>
+<li><strong>Critical/Deadly Strike can increase the seed before it becomes fire.</strong> The rebuilt explosion seed calls the critical routine again; it is not simply a copy of the initial kick's damage or strike outcome.</li>
+<li><strong>Damage to demons/undead is evaluated against the kicked target when constructing that seed.</strong> The handler then constructs one fire amount for the area application. The surrounding monsters' own fire resistances still determine their individual damage taken.</li>
+<li><strong>The supplied PD2 boot bases have zero base kick damage.</strong> Wearing a more advanced boot base does not supply the vanilla boot-damage progression in these tables. The boots' strength coefficient is 100.</li>
+<li><strong>Charges are not safely represented by multiplying the displayed kick by Tiger Strike's tooltip.</strong> The initial hit and rebuilt explosion have different buffers and processing order. The calculator deliberately does not automatically transfer charge-only bonuses to the explosion.</li>
+</ol>
+
+<h2 id="what-happens-in-the-handler">What happens in the handler</h2>
+
+<p>The server-do-50 handler validates game, attacker, target and combat data. It calls the progressive-charge release helper, applies the stored melee combat through the durability/combat helper, checks whether the attacker is dead, then constructs a fresh damage structure using the custom kick builder. It evaluates Dragon Tail's skill formula, reads fire mastery (stat 329), constructs a new fire-only area packet and immediately calls the radial application helper around the target's position.</p>
+
+<p>This order has several consequences:</p>
+
+<ul>
+<li>An existing melee combat record and a valid target/path are prerequisites; this is not a ground-targeted fire nova.</li>
+<li>The explosion is centred on the <strong>kicked target</strong>, rather than on the Assassin.</li>
+<li>A successful initial attack and a damaging area application are different stages. Do not infer all hit, block or dodge behavior from a character-sheet damage number.</li>
+<li>The handler checks that the <strong>attacker</strong> survived the initial processing. An attacker death can abort the later burst.</li>
+<li>Target life is not an input to the rebuilt damage. There is no overkill multiplier or corpse-life multiplier in this formula.</li>
+<li>The handler does not require the monster's death animation to finish. A lethal kick does not create a Sacrifice-style corpse timer.</li>
+<li>Other martial-arts releases are their own effects. Do not attribute every projectile, meteor, poison cloud or fire visual during a finisher to Dragon Tail's explosion.</li>
+</ul>
+
+<h2 id="explosion-delay-animation-and-attack-speed">Explosion delay, animation and attack speed</h2>
+
+<p>The server fire calculation and radial application happen inside the same invocation of the skill's server-do handler. <strong>No additional whole-frame timer is present there.</strong> This does not mean zero time from clicking: the character must reach the action point in the kick animation, and client rendering/network updates can show the effect later.</p>
+
+<p>The skill uses the KK animation and <code>UseAttackRate=1</code>. Its parameter 4 is −20. The S14 table explicitly connects this to a temporary <code>attackrate</code> state; see the beta comparison below. Faster attack speed concerns the kick's animation/cadence, not a separate explosion fuse. FCR is not the cadence input for this attack.</p>
+
+<p>The <code>dragontail missile</code> row (533) has Range 16 and a 16-frame visual animation using <code>ExpArrowExplode</code>. It has no base damage and no next-hit delay value. The server handler applies the damage radially instead of waiting for this visual missile to travel. <strong>The 16-frame value is not a 16-frame damage delay, a repeated damage tick count, or a damage window.</strong></p>
+
+<p>The radial damage call does not use the visual missile's normal hit processing or its NHD column. There is no Dragon-Tail-specific NHD timer in the traced handler. Other charge missiles can still have their own NHD and collision rules.</p>
+
+<p>The calculator asks for an observed attack cycle if a sustained estimate is wanted. It does not invent an IAS breakpoint from the −20 parameter. Animation speed limits, weapon speed, skill IAS, action frames and interruptions need their own animation audit.</p>
+
+<h2 id="damage-formula">Damage formula</h2>
+
+<p>Let:</p>
+
+<ul>
+<li><code>L</code> = effective Dragon Tail level, including +skills;</li>
+<li><code>T</code> and <code>F</code> = hard points in Dragon Talon and Dragon Flight;</li>
+<li><code>M</code> = active fire mastery / +fire skill damage stat;</li>
+<li><code>K</code> = the fresh physical kick seed, after the eligible strike multiplier, before target physical resistance.</li>
+</ul>
+
+<p>The skill formula is:</p>
+
+<pre><code>S = 40 + 13 × (L − 1) + 8 × (T + F)
+Fire before resistance = K × (100 + S + M) / 100
+</code></pre>
+
+<p>The extra <strong>100</strong> comes from the DLL, rather than from the text formula alone. The synergy bonus is additive in percentage points; it is not <code>base × (1 + 0.08 × synergy points)</code>.</p>
+
+<p>For level 40 with 20 hard points in each synergy:</p>
+
+<pre><code>S = 40 + 13 × 39 + 8 × 40 = 867
+Fire factor with no mastery = (100 + 867) / 100 = 9.67×
+Fire factor with +50 mastery = 10.17×
+Relative benefit of +50 mastery = 1017 / 967 − 1 = 5.17%
+</code></pre>
+
+<p>That +50 is not an additional 1.5× multiplication. Nor does an independent second mastery pass apply to the newly constructed fire-only area packet in this handler.</p>
+
+<h3 id="building-the-seed-from-attributes-and-gear">Building the seed from attributes and gear</h3>
+
+<p>For the supplied boot tables, with boots equipped and ordinary nonnegative bonuses, the custom builder reduces to the following useful model:</p>
+
+<pre><code>Base minimum = Dex / 4 + off-weapon min damage + Damage +X + 2 × item_kickdamage
+Base maximum = Dex / 3 + off-weapon max damage + Damage +X + 2 × item_kickdamage
+ED pool = Strength + effective off-weapon ED + matching damage-to-demon/undead ED
+Kick range = Base range × (100 + ED pool) / 100
+</code></pre>
+
+<p>The code works at 1/256 damage precision; <code>Dex / 3</code> can retain fractions. The calculator reproduces the principal fixed-point endpoint truncations, but the expected average uses endpoint means instead of enumerating the entire random distribution.</p>
+
+<p>Details behind this model:</p>
+
+<ul>
+<li>The custom builder explicitly creates dexterity-derived base minimum/maximum using divisors 4 and 3.</li>
+<li>The native kick helper supplies the boots and their strength/dexterity coefficients. All 15 boot bases in the supplied PD2 Armor.txt have <code>mindam=0</code>, <code>maxdam=0</code>, <code>StrBonus=100</code>, no DexBonus.</li>
+<li>The helper adds the item kick-damage stat to the output, then includes it again in the worn boots' contribution. Thus that particular stat is counted twice on this path. This is not a claim that every item described as increasing kick damage uses that same stat.</li>
+<li>The custom builder subtracts weapon item min/max stats from the character's min/max totals. Local weapon physical base damage and local weapon ED therefore are not the kick's normal scaling source. The distinct <code>damage +X</code> stat is added explicitly.</li>
+<li>Attribute bonuses, generic ED, off-weapon item ED and the matching monster-type bonus go into the kick scaling pool. Do not enter strength twice.</li>
+<li>The native helper temporarily removes weapon contributions while collecting its ED values. Use effective active-weapon totals for global modifiers; simply adding everything printed on two weapons is not established by this audit.</li>
+<li>The native helper has a −90 floor on part of the ED pool. The combined-ED entry is intended for ordinary builds; use a validated manual seed for large negative bonuses, unusual equipment or no boots.</li>
+</ul>
+
+<p><strong>Example:</strong> 300 dexterity, 200 strength, no other physical bonuses gives a seed range of 225–300. With level 40 and both synergies maxed, the normal explosion is approximately <strong>2,175.75–2,901 fire</strong>, before resistance and before strike outcomes.</p>
+
+<h3 id="critical-strike-and-deadly-strike">Critical Strike and Deadly Strike</h3>
+
+<p>The kick builder calls the PD2 critical routine before constructing the fire amount. The traced S13 and S14 routines check Critical Strike first, capped at 75%; if it fails, it checks Deadly Strike, capped at 75% plus the maximum-DS stat (never above an actual 100% probability). Base multipliers are 2× and 1.5× respectively. The separate multiplier stats modify these values.</p>
+
+<pre><code>P(CS) = capped CS chance
+P(DS) = (1 − P(CS)) × capped DS chance
+P(normal) = 1 − P(CS) − P(DS)
+Mean seed multiplier = P(normal) + P(CS) × CS multiplier + P(DS) × DS multiplier
+</code></pre>
+
+<p>They do not stack on the same seed. There is no second separate strike roll on the converted fire packet. Since the burst amount is constructed once, the area does not reroll its seed/critical separately for each surrounding enemy. Their resistances and defensive outcomes can differ.</p>
+
+<p>The custom handler reruns the builder after initial melee processing. Accordingly, a critical initial kick does not prove that the fire burst used a critical seed. Conversely, the burst's seed can critically roll independently of the earlier kick.</p>
+
+<h3 id="physical-resistance-versus-fire-resistance">Physical resistance versus fire resistance</h3>
+
+<p>The primary monster's physical resistance is not used to reduce the new kick seed before fire construction. Therefore the old vanilla shortcut “physical immune anchor means no explosion damage” does not follow for this custom handler.</p>
+
+<p>The monster <strong>receiving</strong> the explosion uses its own fire resistance, immunity and applicable reductions. It is not assigned the anchor's fire resistance. Physical pierce does not turn into fire pierce and is not an explosion multiplier merely because the seed was physical.</p>
+
+<p>The calculator implements the resistance convention used by the existing PD2 calculator: ordinary −enemy fire resistance cannot break an intact immunity; Conviction/Lower Resist have half effectiveness against initial immunity; once broken, ordinary pierce participates; reductions below zero are halved; final resistance is floored at −100. Breaking sources are rounded separately. These generic resistance rules are kept separate from the verified Dragon Tail conversion. Enter actual reductions after any boss-specific curse penalties. Flat reduction, absorb, PvP and exceptional immune/invulnerable states are not modeled.</p>
+
+<h2 id="niche-scaling-and-positioning-opportunities">Niche scaling and positioning opportunities</h2>
+
+<h3 id="choose-the-monster-you-kick">Choose the monster you kick</h3>
+
+<p>The fresh kick builder receives the primary target. It checks that target for demon/undead ED before producing the one shared fire amount. When those bonuses are large, kicking a matching monster can yield a stronger area burst against the surrounding pack. The other enemies still need to pass the area eligibility/range checks and apply their own fire resistance.</p>
+
+<p>The area is centred on the target's coordinates, so choosing a monster in the middle of a pack can reach more enemies than choosing one at its edge. Parameter 3 is a fixed radius value of 6, not an increase per skill level. Raising Dragon Tail improves its damage; the row does not increase this radius with levels.</p>
+
+<p>The radial helper, reached at D2Game <code>6FCC0C70</code>, uses target-filter and obstruction processing rather than a physical moving fire missile. No guarantee of hitting through pillars, walls or special target states is made here. Visual overlap alone is not proof of a valid damage application.</p>
+
+<h3 id="dexterity-strength-flat-damage-ed-and-fire-mastery">Dexterity, strength, flat damage, ED and fire mastery</h3>
+
+<p>Dexterity increases the base range; strength and effective physical ED scale that range; Dragon Tail's skill/synergy/mastery pool then scales the result into fire. These are separate scaling stages. Additional bonuses within the same pool dilute one another.</p>
+
+<p>At 300 dexterity with no flat damage, +20 dexterity gives about 6.67% more seed. At 200 strength and no other ED, +20 strength gives about 6.67% more seed. Once large ED is active, another +20 strength is a smaller relative improvement. Flat off-weapon damage becomes more valuable when both later multipliers are high.</p>
+
+<p>At level 40 with 40 synergy hard points and no mastery, +1 Dragon Tail level gives 13/967 ≈ 1.34% more fire; one additional synergy hard point gives 8/967 ≈ 0.83%. Fire pierce may be substantially stronger than +fire skill damage against resistant monsters, provided immunity is already broken. The calculator compares these upgrades for the entered setup.</p>
+
+<p>Boot upgrades remain useful for their actual item affixes and defense, but the supplied zero base damage table does not support gaining vanilla Myrmidon Greaves base kick damage merely by upgrading the base. Ethereal weapon damage and weapon ED do not by themselves substitute for the missing boot base damage.</p>
+
+<h2 id="charge-interactions-important-boundary">Charge interactions: important boundary</h2>
+
+<p>The handler releases martial-arts effects before rebuilding the explosion damage. It then zero-initializes a fresh damage packet. The legacy progressive-damage helper reached through the kick builder checks the successful-hit flag before injecting its charge-specific ED; an empty packet is not the same as the initial successful melee packet.</p>
+
+<p><strong>This is a reason to test Tiger Strike transfer explicitly, not to copy a vanilla Tiger Tail formula into the calculator.</strong> No automatic Tiger Strike or Cobra ED contribution is included. Generic ED that is demonstrably still active when the fresh explosion seed is built can be entered under effective ED. Manually patched Cobra DLLs from earlier tests are not the original S13 or S14 files audited here.</p>
+
+<p>Other charge releases may add substantial independent damage. This fire-only model excludes those bolts, novas, meteors and clouds. Their synergies, mastery, NHD, missile blocking and timing must be computed separately. The same applies to Crushing Blow, Open Wounds, leech and attack/casting procs: they are not automatically copied into the clean fire-only area packet. The initial kick can have its own on-hit behavior; this calculator does not calculate it.</p>
+
+<h3 id="useful-in-game-checks">Useful in-game checks</h3>
+
+<ul>
+<li>For timing, remove all charges and chance-to-cast effects, kick a durable isolated target while another durable target is inside the radius, and compare their life changes frame by frame. Use life loss rather than the start/end of the fire sprite. The game runs at 25 simulation frames/second.</li>
+<li>For the physical-immunity question, compare normal fire-vulnerable secondary targets around physical-resistant versus physical-immune anchors, keeping monster type and other stats identical.</li>
+<li>For Tiger Strike, use no CS/DS, no other charges and fixed equipment. Compare repeated secondary-target life loss with zero versus three Tiger charges. This isolates the explosion from the initial hit and Tiger's own splash.</li>
+<li>For the demon/undead-anchor interaction, keep the secondary monster type unchanged, change only the primary type, and repeat with and without a large race ED source.</li>
+</ul>
+
+<h2 id="s13-versus-the-supplied-s14-open-beta">S13 versus the supplied S14 Open Beta</h2>
+
+<table>
+<thead>
+<tr>
+  <th>Part</th>
+  <th>S13 supplied files</th>
+  <th>S14 beta supplied files</th>
+  <th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Dragon Tail server-do function</td>
+  <td>50, custom handler <code>102FA2F0</code></td>
+  <td>50, custom handler <code>103AACF0</code></td>
+  <td>Same traced calculation/order, relocated calls</td>
+</tr>
+<tr>
+  <td>Fire formula</td>
+  <td>40 + 13 per level after level 1 + 8 per synergy hard point</td>
+  <td>Same</td>
+  <td>No damage coefficient change found</td>
+</tr>
+<tr>
+  <td>Radius parameter</td>
+  <td>6</td>
+  <td>6</td>
+  <td>No radius change found</td>
+</tr>
+<tr>
+  <td>Attack-rate parameter</td>
+  <td>−20</td>
+  <td>−20</td>
+  <td>Same parameter</td>
+</tr>
+<tr>
+  <td>Explicit skill aura fields</td>
+  <td>Empty in the earlier extracted S13 Skills.txt</td>
+  <td><code>temp_skill_buff</code>, <code>attackrate</code>, <code>par4</code></td>
+  <td>Beta makes the temporary attack-rate state explicit in the row</td>
+</tr>
+<tr>
+  <td>Kick builder</td>
+  <td><code>1026EAD0</code></td>
+  <td><code>10300760</code></td>
+  <td>Same traced dex/flat/ED structure</td>
+</tr>
+<tr>
+  <td>Explosion fire mastery</td>
+  <td>Added to 100 + calc1</td>
+  <td>Same</td>
+  <td>No multiplicative mastery change found</td>
+</tr>
+<tr>
+  <td>Explosion scheduling</td>
+  <td>Immediate radial call in handler</td>
+  <td>Same</td>
+  <td>No separate delay added</td>
+</tr>
+<tr>
+  <td>Visual missile</td>
+  <td><code>dragontail missile</code>, row 533</td>
+  <td>Same identity</td>
+  <td>Visual lifetime is separate from damage</td>
+</tr>
+</tbody>
+</table>
+
+<p>The aura-field difference does <strong>not</strong> alone prove S13 had no penalty: the legacy start function already consumes parameter 4. This audit does not infer a new numeric attack speed breakpoint from a table wiring change.</p>
+
+<p>The S14 formula uses Dragon Talon and Dragon Flight hard points. It does not use their own enhanced-damage formulas as synergy values. Their unrelated coefficient changes therefore must not be copied into Dragon Tail's 8%-per-hard-point formula.</p>
+
+<p>This is a comparison of the available snapshots, not a claim that all open-beta builds have been examined or that later release patches match them.</p>
+
+<h2 id="evidence-map">Evidence map</h2>
+
+<p>Addresses are preferred virtual addresses in the exact fingerprints in sources.json, not portable offsets for modifying another version.</p>
+
+<table>
+<thead>
+<tr>
+  <th>Finding</th>
+  <th>S13 location</th>
+  <th>S14 beta location / supporting data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Install custom server-do-50</td>
+  <td><code>102BE479</code></td>
+  <td><code>1036830A</code></td>
+</tr>
+<tr>
+  <td>Full Dragon Tail handler</td>
+  <td><code>102FA2F0–102FA4AB</code></td>
+  <td><code>103AACF0–103AAEAB</code></td>
+</tr>
+<tr>
+  <td>Fresh kick builder called for burst</td>
+  <td><code>102FA398–102FA3C1</code></td>
+  <td><code>103AAD98–103AADC1</code></td>
+</tr>
+<tr>
+  <td>Read fire mastery stat 329</td>
+  <td><code>102FA3DD–102FA3E5</code></td>
+  <td><code>103AADDD–103AADE5</code></td>
+</tr>
+<tr>
+  <td>Add 100 + calc1 + mastery</td>
+  <td><code>102FA404–102FA425</code></td>
+  <td><code>103AAE04–103AAE25</code></td>
+</tr>
+<tr>
+  <td>Fire-only radial application</td>
+  <td><code>102FA42A–102FA474</code></td>
+  <td><code>103AAE2A–103AAE74</code></td>
+</tr>
+<tr>
+  <td>Custom kick builder</td>
+  <td><code>1026EAD0–1026ED2D</code></td>
+  <td><code>10300760</code> onward</td>
+</tr>
+<tr>
+  <td>Dexterity base / off-weapon flat / race ED</td>
+  <td><code>1026EB17–1026ECC3</code></td>
+  <td>Same builder structure in beta</td>
+</tr>
+<tr>
+  <td>Critical routine called by builder</td>
+  <td><code>1026ECEC</code>, wrapper <code>1026F8C0</code> → <code>10270E00</code></td>
+  <td>Same call sequence in beta builder</td>
+</tr>
+<tr>
+  <td>Strike chance caps and priority</td>
+  <td><code>10270D20–10270DEE</code></td>
+  <td><code>10302A10–10302ADE</code> (same caps/priority)</td>
+</tr>
+<tr>
+  <td>Native worn-boot helper</td>
+  <td>D2Common export 10323, <code>6FDA1C60–6FDA1EBE</code></td>
+  <td>Supplied common DLL fingerprint unchanged</td>
+</tr>
+<tr>
+  <td>Legacy progressive ED gate</td>
+  <td>D2Game <code>6FCB1E30</code></td>
+  <td>Successful-hit flag gate; see charge caveat</td>
+</tr>
+<tr>
+  <td>Radial target callback</td>
+  <td>D2Game <code>6FCC1210</code> → <code>6FCC10B0</code></td>
+  <td>Per-target packet copy / damage processing</td>
+</tr>
+<tr>
+  <td>Table rows</td>
+  <td>Skills 270, Missiles 533, Armor boot rows</td>
+  <td>Extracted from supplied pd2data.mpq</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="calculator-scope">Calculator scope</h2>
+
+<p>The calculator predicts the fire explosion seed and per-enemy damage, with explicit assumptions. It is not a full Assassin simulator. It excludes the initial kick's direct damage, charge-release damage, weapon-specific conditional effects, Crushing Blow, Open Wounds, absorb/flat reduction, exact AI/pathing, interruptions, boss invulnerability, PvP and overflow. Its optional throughput estimate takes attack cadence and failure probabilities supplied by the user; it does not solve IAS or prove eligibility against a particular defense.</p>
+
+<p>Tests exercise hand-calculated examples, additive mastery, strike probabilities/caps, immunity, below-zero resistance, race anchoring, validation and attempted-attack throughput. Passing them verifies the implemented model; it does not replace an in-game comparison. In particular, charge transfer and exact visual/action-frame alignment remain explicit live-test targets.</p>
+</article><footer><a href="mechanics.md">Markdown source</a> · <a href="https://github.com/fvmpd2/pd2-dragon-tail-calculator">GitHub repository</a></footer></main></body></html>
