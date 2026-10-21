@@ -26,7 +26,8 @@ function calculate(input={}){
  if(n.level<1||n.level>100||n.talon>20||n.flight>20)throw Error('Use skill level 1–100 and hard-point synergies 0–20.');
  if(n.frames<1||n.targets<1)throw Error('Attack frames and target count must be at least 1.');
  if(n.bootMax<n.bootMin)throw Error('Boot maximum must be at least boot minimum.');
- if(n.flatMax<n.flatMin||n.manualMax<n.manualMin)throw Error('Maximum damage must be at least minimum damage.');
+ // Flat Min/Max are independent bonuses, not endpoints of a damage range.
+ if(n.mode==='manual'&&n.manualMax<n.manualMin)throw Error('Kick maximum must be at least kick minimum.');
  let ed=n.str+n.ed+(n.anchor==='demon'?n.demonEd:n.anchor==='undead'?n.undeadEd:0);
  const skillBonus=40+13*(trunc(n.level)-1)+8*(trunc(n.talon)+trunc(n.flight));
  const firePercent=100+skillBonus+n.mastery;
@@ -43,6 +44,8 @@ function calculate(input={}){
   // UI ED is a combined effective bonus: do not emulate separate negative pools here.
   if(ed<=-90)throw Error('For large negative ED penalties use the manual kick mode.');
   kmin=trunc(lo*(100+ed)/100);kmax=trunc(hi*(100+ed)/100);
+  // Native builder rolls the minimum when its computed maximum is not higher.
+  kmax=Math.max(kmin,kmax);
  }
  const pCS=clamp(n.cs,0,75)/100;
  const pDS=(1-pCS)*clamp(n.ds,0,Math.min(100,75+n.maxDs))/100;
@@ -66,3 +69,4 @@ function calculate(input={}){
 const api={boots,defaults,resistance,calculate};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DragonTail=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
+

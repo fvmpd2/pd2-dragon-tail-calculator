@@ -28,7 +28,18 @@ a=calculate({targets:8});near(a.pack,8*a.applied);
 a=calculate({mode:'manual',manualMin:1000,manualMax:1000,level:1,talon:0,flight:0,res:0});near(a.raw,1400);
 // Failure / cadence only affect an explicit attempted-attack throughput estimate.
 a=calculate({hit:50,block:20,frames:10});near(a.perAttempt,.4*a.applied);near(a.dps,a.applied);
-assert.throws(()=>calculate({flatMin:10,flatMax:2}));
+// Flat bonuses are independent; a minimum-only bonus is valid.
+const seed=calc({res:0});
+for(const [min,max] of [[10,0],[0,10],[10,2],[10,20]]){
+ const v=calc({flatMin:min,flatMax:max,res:0});
+ near(v.kmin,seed.kmin+min*3);near(v.kmax,seed.kmax+max*3);
+ assert(Number.isFinite(v.applied));assert(v.raw>=seed.raw);
+}
+// Even a minimum bonus larger than the base range stays valid.
+const crossed=calc({flatMin:1000,flatMax:0,res:0});near(crossed.kmax,crossed.kmin);
+assert.throws(()=>calc({flatMin:-1}));
+assert.throws(()=>calc({mode:'manual',manualMin:500,manualMax:100}));
+assert.doesNotThrow(()=>calc({mode:'stats',manualMin:500,manualMax:100,flatMin:10}));
 assert.throws(()=>calculate({talon:21}));
 assert.throws(()=>calculate({frames:0}));
 // Independently check the compiled Myrmidon range and its contribution before ED.
@@ -42,3 +53,4 @@ assert.throws(()=>calc({boots:'unknown'}));
 near(calc({boots:'uhb',bootMin:0,bootMax:0}).kmin,474);
 near(calc({boots:'custom',bootMin:10,bootMax:20}).kmin,255);
 console.log('Dragon Tail formula, compiled boots, preset/custom, immunity and validation checks passed.');
+
