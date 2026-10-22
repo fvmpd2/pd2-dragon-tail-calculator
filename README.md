@@ -9,7 +9,7 @@ Estimates Dragon Tail's average fire explosion damage per enemy, including boots
 - **Character import:** choose an Assassin `.d2s` save or PD2 Armory `.json` export. Equipment, inventory charms, skill levels and supported item stats populate the build. Files stay in your browser. Other planner JSON schemas are not supported.
 - **Sharing:** Copy build link saves the current inputs in the URL; no account or server is needed.
 
-Import notes identify values to review. Saves do not establish which manually cast buffs, party/mercenary auras or curses are active. Activate Burst of Speed and other effects yourself, and set the monster's resistance/hit assumptions. Set and socket modifiers are handled by the character reader; unsupported files are rejected rather than partially applied. Review unusual item modifiers and active weapon selection after import.
+Import notes identify values to review. Saves do not establish which manually cast buffs, party/mercenary auras or curses are active. Burst of Speed is assumed active at its hard-point level. Native mercenary auras and equipment-granted auras are applied automatically, assuming the mercenary is alive and in range (a dead mercenary in a save is excluded). Mercenary level is read directly or inferred from saved experience; missing native-aura data is flagged. Review other party buffs and set the monster's resistance/hit assumptions. Set and socket modifiers are handled by the character reader; unsupported files are rejected rather than partially applied. Review unusual item modifiers and active weapon selection after import.
 
 ## Sources and limits
 
