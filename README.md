@@ -1,36 +1,30 @@
-# PD2 Dragon Tail Damage Calculator
+# PD2 Dragon Tail calculator
 
-A standalone Dragon Tail fire-explosion calculator and mechanics audit for **Project Diablo 2 S13 / S14 Open Beta**. Built with AI from the supplied DLLs and text tables, checked 20 October 2026.
+[Open the calculator](https://fvmpd2.github.io/pd2-dragon-tail-calculator/).
 
-**[Use the calculator](https://fvmpd2.github.io/pd2-dragon-tail-calculator/)** · **[Read the DLL mechanics audit](mechanics.md)**
+Estimates Dragon Tail's average fire explosion damage per enemy, including boots, attributes, off-weapon damage, synergies, Critical/Deadly Strike and fire resistance. The initial physical kick and other charge releases are excluded.
 
-Predict Dragon Tail damage from boot base, dexterity, strength, off-weapon flat damage, effective ED, hard-point synergies, fire mastery, Critical Strike, Deadly Strike and enemy fire resistance. A manual pre-resistance kick input supports externally validated gear calculations. Build links preserve inputs. Upgrade comparisons show which stats improve the entered setup.
+- **IAS calculator:** weapon speed, weapon/gear IAS, dual claws, Burst of Speed hard points, Fanaticism and slows. Calculated frames feed the sustained estimate; observed frames can override them.
+- **Debuffs:** Conviction and Lower Resist level selectors use supplied S14 game formulas. Lower Resist includes Curse Mastery. Manual reduction overrides remain available.
+- **Character import:** choose an Assassin `.d2s` save or PD2 Armory `.json` export. Equipment, inventory charms, skill levels and supported item stats populate the build. Files stay in your browser. Other planner JSON schemas are not supported.
+- **Sharing:** Copy build link saves the current inputs in the URL; no account or server is needed.
 
-## Mechanics covered
+Import notes identify values to review. Saves do not establish which manually cast buffs, party/mercenary auras or curses are active. Activate Burst of Speed and other effects yourself, and set the monster's resistance/hit assumptions. Set and socket modifiers are handled by the character reader; unsupported files are rejected rather than partially applied. Review unusual item modifiers and active weapon selection after import.
 
-- Explosion timing versus animation lifetime: no separate scheduled explosion timer found.
-- A freshly generated kick seed rather than physical damage taken by the primary monster.
-- Additive fire mastery and the DLL's additional 100% term.
-- Demon/undead damage evaluated against the kicked target.
-- Critical/Deadly Strike before fire construction, with a fresh explosion seed.
-- Boot-base selection from compiled PD2 Armor.bin, plus editable custom boot damage.
-- S13 versus S14 beta table and handler differences.
-- Charge-transfer caveats, player testing scenarios and exact source fingerprints.
+## Sources and limits
 
-## Run locally
+Damage mechanics: [mechanics & evidence](mechanics.html). Debuff formulas and Dragon Tail's −20 speed modifier come from supplied S14 Open Beta patch 1 `Skills.txt`; hashes/formulas are in `gamedata-provenance.json`. Weapon base speeds use the supplied S14 table. Assassin kick animations are 13 frames at base speed 256. Timing follows the [PD2 IAS audit](https://roofooevazan.github.io/pd2-ias-calc/). Character parsing and item aggregation use locally bundled [PD2 Advanced Stats](https://github.com/RoofooEvazan/pd2-advanced-stats) modules; see [credits](vendor/README.md).
 
-Open `index.html` in a browser. No account, dependency installation or original game DLL is required. Run `node test.js` for the formula checks.
+This is a static code model, not a live-game calibration. Sustained damage assumes held kicks, identical exposed targets and the entered hit/application chances; it omits charge-building, travel and downtime. PvP, absorb, exceptional target states and integer overflow are outside scope.
 
-For GitHub Pages, publish `main` / repository root. Files needed at runtime: `index.html`, `style.css`, `engine.js`, `app.js`. Keep `mechanics.html`, `mechanics.md`, `sources.json` and `evidence.asm` beside them for reproducibility.
+## Run and test
 
-## Scope and limits
+Open `index.html`, or serve this folder with any static web server. No build step.
 
-Results are **fire explosion damage**, excluding the initial kick and other martial-arts releases. They are a static-code model, not a live-game-calibrated full-character DPS simulator. Tiger Strike/Cobra charge ED is not automatically assumed to transfer into the rebuilt explosion seed. See the [charge interaction evidence and testing plan](mechanics.md#charge-interactions-important-boundary).
+```sh
+node test.js
+node features-test.cjs
+node browser-test.cjs # requires Playwright; PD2_BROWSER_PATH can select a browser
+```
 
-The generic resistance model halves breaking reductions against initial immunity and the below-zero reduction portion. Enter effective debuff values after any boss penalties. Flat reduction, absorb, PvP, extreme-value overflow, exceptional target states and IAS breakpoints are not simulated. Expected averages approximate fixed-point roll distributions.
-
-Source comparisons cover the supplied snapshots, not every intermediate beta update. No original game binaries or full data archives are redistributed.
-
-## Boot-data correction
-
-The first release used zero damage from the inconsistent Armor.txt. The calculator now uses compiled Armor.bin values read by the DLL (Myrmidon Greaves: 83–155), with all 15 boot presets and custom inputs. Existing links without a boot selection default to Myrmidon Greaves. Select the base of your equipped boots.
+Optional real-save verification is local only: never commit character files or personal exports.

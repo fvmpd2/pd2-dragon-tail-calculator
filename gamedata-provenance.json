@@ -1,0 +1,27 @@
+{
+  "skills_sha256": "0bf4da2418f1c5df5acf47e410f927bc1a036f69e0edbbf1ea4c74d4b21b0f8b",
+  "source": "S14 Open Beta patch 1 supplied Skills.txt, 22 October 2026",
+  "formulas": {
+    "123": {
+      "aurastatcalc1": "-dm56",
+      "aurastatcalc2": "-min(ln34,150)",
+      "aurastatcalc3": "-min(ln34,150)",
+      "aurastatcalc4": "-min(ln34,150)"
+    },
+    "91": {
+      "aurastatcalc1": "-(1 * (par5 + par6*lvl + skill('CurMas'.blvl) / 2))",
+      "aurastatcalc2": "-(1 * (par5 + par6*lvl + skill('CurMas'.blvl) / 2))",
+      "aurastatcalc3": "-(1 * (par5 + par6*lvl + skill('CurMas'.blvl) / 2))",
+      "aurastatcalc4": "-(1 * (par5 + par6*lvl + skill('CurMas'.blvl) / 2))"
+    },
+    "258": {
+      "aurastatcalc1": "edln",
+      "aurastatcalc2": "((110*blvl) * (par4-par3))/(100 * (blvl+6)) + par3"
+    },
+    "270": {
+      "aurastatcalc1": "par4"
+    }
+  },
+  "animation": "AIKK* AnimData: 13 frames, speed 256; all Assassin kick weapon classes",
+  "weapons": "Supplied S14 fifth-patch Weapons.txt base speeds; weapon selection can be overridden with custom WSM"
+}

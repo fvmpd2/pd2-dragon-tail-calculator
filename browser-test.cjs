@@ -27,6 +27,16 @@ const {chromium}=require('playwright');
   assert(await page.locator('#error').isVisible());
   await page.selectOption('[name="mode"]','stats');await healthy();
   await page.click('#reset');await healthy();assert.equal(await page.locator('#damage').innerText(),original);
+  await page.selectOption('[name="convictionLevel"]','20');assert.equal(await page.inputValue('[name="conviction"]'),'50');
+  await page.selectOption('[name="lowerResLevel"]','20');await page.selectOption('[name="curseMastery"]','20');assert.equal(await page.inputValue('[name="lowerRes"]'),'49');
+  const armory={character:{name:'Synthetic test',class:{id:6},level:90,status:{},gold:{character:0,stash:0},attributes:{strength:100,dexterity:200,vitality:100,energy:25},life:500,mana:100,stamina:100,skills:[{id:270,level:20},{id:255,level:20},{id:275,level:20}]},items:[{name:'Boots',base_code:'uhb',base:{type_code:'boot'},quality:{id:2},location:{zone:'Equipped',equipment:'Boots'},modifiers:[{name:'strength',values:[20]}]}]};
+  await page.locator('#character').setInputFiles({name:'test.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(armory))});
+  await page.waitForFunction(()=>document.querySelector('#feedback').textContent.startsWith('Character imported'));
+  await healthy();assert.equal(await page.inputValue('[name="str"]'),'120');assert.equal(await page.inputValue('[name="level"]'),'20');
+  await page.locator('#character').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{}')});
+  await page.waitForFunction(()=>document.querySelector('#feedback').textContent.startsWith('Import failed'));
+  assert.equal(await page.inputValue('[name="str"]'),'120');await healthy();
+  await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   assert.deepEqual(errors,[]);console.log('Passed: minimum-only bonuses, maximum-only/mixed/crossed ranges, saved links, inactive manual inputs and Reset in a real browser.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
